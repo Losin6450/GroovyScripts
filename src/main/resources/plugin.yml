@@ -1,0 +1,12 @@
+name: GroovyScripts
+version: '${project.version}'
+main: me.losin6450.plugin.groovyscripts.GroovyScripts
+api-version: 1.16
+authors: [ Losin6450 ]
+description: Write groovy scripts in minecraft
+commands:
+  groovyscripts:
+    usage: /groovyscripts
+    description: main command for groovyscripts
+    permission: groovyscripts.use
+    permission-message: you do not have access to this command
