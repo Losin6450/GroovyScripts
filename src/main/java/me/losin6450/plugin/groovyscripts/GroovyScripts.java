@@ -24,9 +24,11 @@ public final class GroovyScripts extends JavaPlugin {
     private List<Thread> threads;
     private EventManager eventmanager;
     private CommandManager commandManager;
+    private ShutdownManager shutdownManager;
 
     @Override
     public void onEnable() {
+        shutdownManager = new ShutdownManager();
         commandManager = new CommandManager();
         eventmanager = new EventManager();
         threads = new ArrayList<Thread>();
@@ -43,10 +45,28 @@ public final class GroovyScripts extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        // Plugin shutdown logic
+        Thread shutdowns = new Thread(() -> {boolean wait = shutdownManager.executeShutdownHooks();});
+        shutdowns.start();
+        try {
+            shutdowns.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     public void loadScripts(CommandSender sender){
+        Thread shutdowns = new Thread(() -> {
+            sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&aExecuting all consumers"));
+            boolean wait = shutdownManager.executeShutdownHooks();
+            sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&aExecuted all consumers ( " + wait + " )"));
+        });
+        shutdowns.start();
+        try {
+            shutdowns.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        shutdownManager.clear();
         if(!threads.isEmpty()){
             sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&aRemoving current scripts..."));
             for(Thread thr : threads){
@@ -56,7 +76,13 @@ public final class GroovyScripts extends JavaPlugin {
             sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&aRemoved current scripts"));
         }
         try {
-            engine = new GroovyScriptEngine(Arrays.asList(scriptsfolder.toURI().toURL()).toArray(URL[]::new), getClassLoader());
+            List<URL> urls = new ArrayList<URL>();
+            for(File file : scriptsfolder.listFiles()){
+                if(!file.getName().startsWith("-")){
+                    urls.add(file.toURI().toURL());
+                }
+            }
+            engine = new GroovyScriptEngine(urls.toArray(URL[]::new), getClassLoader());
         } catch (MalformedURLException e) {
             e.printStackTrace();
         }
@@ -71,6 +97,7 @@ public final class GroovyScripts extends JavaPlugin {
 
                 Binding bindings = new Binding();
                 bindings.setProperty("GroovyScripts", this);
+                bindings.setProperty("CURRENTSCRIPT", file);
                 Thread thread = new Thread(() -> {
                         sender.sendMessage(ChatColor.translateAlternateColorCodes('&',"&aLoading script " + file.getName()));
                         int errors = 0;
@@ -112,4 +139,6 @@ public final class GroovyScripts extends JavaPlugin {
     }
 
     public CommandManager getCommandManager() {return commandManager;}
+
+    public ShutdownManager getShutdownManager() {return shutdownManager;}
 }
